@@ -14,8 +14,8 @@ app.get("/", (req, res) => {
   res.send("API Working ✅");
 });
 app.use(cors({
-  origin: "https://admin-six-nu-73.vercel.app/login", // WARNING: allows any origin
-  credentials: true // You cannot use credentials with wildcard origin
+  origin: "*", // WARNING: allows any origin
+  credentials: false // You cannot use credentials with wildcard origin
 }));
 app.use(express.json());
 // 📝 Register API
@@ -35,26 +35,32 @@ app.post("/register", async (req, res) => {
 
 // 🔐 Login API
 app.post("/login", async (req, res) => {
-  const { email, password } = req.body;
   try {
-    const result = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
-    const user = result.rows[0];
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).send("Missing fields");
 
-    if (!user) return res.status(400).json({ error: "Invalid email or password" });
+    const userResult = await pool.query("SELECT * FROM users WHERE email = $1", [email]);
+    if (!userResult.rows.length) return res.status(401).send("Invalid email");
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) return res.status(400).json({ error: "Invalid email or password" });
-const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
-  expiresIn: "1h"
-});
+    const user = userResult.rows[0];
 
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) return res.status(401).send("Invalid password");
 
-    res.json({ message: "Login success", token });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    // Generate JWT token (optional)
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET || "default_secret", {
+      expiresIn: "1h",
+    });
+
+    res.status(200).json({ message: "Login successful", token });
+  } catch (error) {
+    console.error("Login error:", error);
+    res.status(500).send("Server error");
   }
 });
 
+
+app.use(express.json());
 
 // Start server
 const PORT = process.env.PORT || 3002;
