@@ -59,6 +59,21 @@ app.post("/login", async (req, res) => {
   }
 });
 
+app.get("/init", async (req, res) => {
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL,
+        password TEXT NOT NULL
+      )
+    `);
+    res.send("✅ Users table created");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Error creating table");
+  }
+});
 
 
 app.use(express.json());
