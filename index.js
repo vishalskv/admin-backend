@@ -3,6 +3,7 @@ const express = require("express");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const pool = require("./db");
+const Razorpay = require("razorpay");
 require("dotenv").config();
 
 const app = express();
@@ -82,4 +83,26 @@ app.use(express.json());
 const PORT = process.env.PORT || 3002;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
+});
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_SECRET,
+});
+
+app.post("/create-order", async (req, res) => {
+  const { amount, currency = "INR", receipt = "receipt#1" } = req.body;
+
+  try {
+    const options = {
+      amount: amount * 100, // amount in paise
+      currency,
+      receipt,
+    };
+
+    const order = await razorpay.orders.create(options);
+    res.status(200).json(order);
+  } catch (err) {
+    console.error("Error creating Razorpay order:", err);
+    res.status(500).json({ error: "Order creation failed" });
+  }
 });
